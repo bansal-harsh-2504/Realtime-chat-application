@@ -1,22 +1,24 @@
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 
 const wss = new WebSocketServer({ port: 8080 });
 
-wss.on("connection", (socket) => {
-  console.log("User connected");
+let allSockets: WebSocket[] = [];
 
-  setInterval(() => {
-    socket.send("Current price of shib: " + Math.random());
-  }, 1000);
+wss.on("connection", (socket: WebSocket) => {
+  allSockets.push(socket);
 
-  socket.on("close", () => {
-    console.log("User disconnected");
+  console.log("User connected #");
+
+  socket.on("message", (message) => {
+    console.log("message received" + message.toString());
+
+    allSockets.forEach((s) => {
+      s.send(message.toString() + ": sent from the server");
+    });
   });
 
-  socket.on("message", (e) => {
-    console.log(e.toString());
-    if (e.toString() === "ping") {
-      socket.send("pong");
-    }
+  socket.on("close", () => {
+    allSockets = allSockets.filter((s) => s != socket);
+    console.log("User disconnected #");
   });
 });
