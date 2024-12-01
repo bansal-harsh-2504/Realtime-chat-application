@@ -2,23 +2,40 @@ import { WebSocketServer, WebSocket } from "ws";
 
 const wss = new WebSocketServer({ port: 8080 });
 
-let allSockets: WebSocket[] = [];
+interface User {
+  socket: WebSocket;
+  room: string;
+}
+
+let allSockets: User[] = [];
 
 wss.on("connection", (socket: WebSocket) => {
-  allSockets.push(socket);
-
   console.log("User connected #");
 
   socket.on("message", (message) => {
-    console.log("message received" + message.toString());
+    const parsedMessage = JSON.parse(message as unknown as string);
+    if (parsedMessage.type === "join") {
+      allSockets.push({
+        socket,
+        room: parsedMessage.payload.roomId,
+      });
+    }
 
-    allSockets.forEach((s) => {
-      s.send(message.toString() + ": sent from the server");
-    });
+    if (parsedMessage.type === "chat") {
+      const currUserRoom = allSockets.find((user) => user.socket === socket);
+
+      if (currUserRoom) {
+        for (let i = 0; i < allSockets.length; i++) {
+          if (allSockets[i].room === currUserRoom.room) {
+            allSockets[i].socket.send(parsedMessage.payload.message);
+          }
+        }
+      }
+    }
   });
 
   socket.on("close", () => {
-    allSockets = allSockets.filter((s) => s != socket);
+    allSockets = allSockets.filter((obj) => obj.socket != socket);
     console.log("User disconnected #");
   });
 });
